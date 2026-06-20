@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html,body { margin:0; padding:0; background:transparent; }
+  #stage { width:1024px; height:1024px; }
+  #stage svg { width:1024px; height:1024px; display:block; }
+</style>
+</head>
+<body>
+<!-- 渲染母版用：把 SVG 放大到 1024 截图。配合 build-icons.sh 使用。 -->
+<div id="stage"></div>
+<script>
+  fetch('memo-icon.svg').then(r => r.text()).then(t => { document.getElementById('stage').innerHTML = t; });
+</script>
+</body>
+</html>

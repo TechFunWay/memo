@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- 备忘录 3D 等距图标 · 由 generate_icon.py 生成，勿手改坐标 -->
+  <defs>
+    <linearGradient id="bg" x1="18%" y1="0%" x2="86%" y2="100%">
+      <stop offset="0%" stop-color="#3BE0A0"/><stop offset="50%" stop-color="#14B8A6"/><stop offset="100%" stop-color="#0C84AE"/>
+    </linearGradient>
+    <radialGradient id="topGloss" cx="50%" cy="-8%" r="72%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.40"/><stop offset="55%" stop-color="#fff" stop-opacity="0.06"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="botShade" cx="50%" cy="112%" r="70%">
+      <stop offset="0%" stop-color="#053b3a" stop-opacity="0.30"/><stop offset="55%" stop-color="#053b3a" stop-opacity="0.05"/><stop offset="100%" stop-color="#053b3a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="faceTop" x1="0%" y1="0%" x2="55%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#eef2f5"/>
+    </linearGradient>
+    <linearGradient id="faceLeft" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#dde4e9"/><stop offset="100%" stop-color="#c6d0d7"/>
+    </linearGradient>
+    <linearGradient id="faceRight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#bcc7cf"/><stop offset="100%" stop-color="#a1aeb8"/>
+    </linearGradient>
+    <radialGradient id="badge" cx="34%" cy="26%" r="84%">
+      <stop offset="0%" stop-color="#7DEFC0"/><stop offset="46%" stop-color="#10B981"/><stop offset="100%" stop-color="#046b41"/>
+    </radialGradient>
+    <radialGradient id="badgeHi" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.7"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="sq"><rect width="256" height="256" rx="58"/></clipPath>
+    <filter id="padShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="11" stdDeviation="10" flood-color="#063a30" flood-opacity="0.35"/>
+    </filter>
+    <filter id="badgeShadow" x="-70%" y="-70%" width="240%" height="240%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#053b2e" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- 背景容器（圆角透明角 + 光影） -->
+  <g clip-path="url(#sq)">
+    <rect width="256" height="256" fill="url(#bg)"/>
+    <rect width="256" height="256" fill="url(#botShade)"/>
+    <rect width="256" height="256" fill="url(#topGloss)"/>
+    <rect x="1.5" y="1.5" width="253" height="253" rx="56.5" fill="none" stroke="#fff" stroke-opacity="0.22" stroke-width="2"/>
+  </g>
+
+  <!-- 地面接触阴影 -->
+  <ellipse cx="128" cy="218" rx="92" ry="18" fill="#04332b" opacity="0.30"/>
+
+  <!-- 等距记事本（盒体） -->
+  <g filter="url(#padShadow)">
+    <polygon points="128.0,160.0 224.0,104.0 224.0,152.0 128.0,208.0" fill="url(#faceRight)"/>
+    <polygon points="32.0,104.0 128.0,160.0 128.0,208.0 32.0,152.0"  fill="url(#faceLeft)"/>
+    <polygon points="128.0,48.0 224.0,104.0 128.0,160.0 32.0,104.0"   fill="url(#faceTop)"/>
+  </g>
+  <!-- 顶页亮边 -->
+  <polygon points="32.0,104.0 128.0,160.0 128.0,165.0 32.0,109.0"  fill="#ffffff" opacity="0.55"/>
+  <polygon points="128.0,160.0 224.0,104.0 224.0,109.0 128.0,165.0" fill="#ffffff" opacity="0.28"/>
+  <!-- 侧面页堆线 -->
+  <line x1="128.0" y1="180.2" x2="224.0" y2="124.2" stroke="#9aa8b1" stroke-width="2.2" stroke-opacity="0.8"/>
+  <line x1="32.0" y1="124.2" x2="128.0" y2="180.2" stroke="#b3bec5" stroke-width="2.2" stroke-opacity="0.8"/>
+  <line x1="128.0" y1="194.6" x2="224.0" y2="138.6" stroke="#9aa8b1" stroke-width="2.2" stroke-opacity="0.8"/>
+  <line x1="32.0" y1="138.6" x2="128.0" y2="194.6" stroke="#b3bec5" stroke-width="2.2" stroke-opacity="0.8"/>
+
+  <!-- 顶面内容 -->
+  <polyline points="112.6,69.3 112.6,76.0 139.5,72.6" fill="none" stroke="#10B981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="128.0,70.4 158.7,88.3 150.6,93.1 119.8,75.2" fill="#10B981"/>
+  <polygon points="110.7,82.7 168.3,116.3 162.1,120.0 104.5,86.4" fill="#C4D0D8"/>
+  <polygon points="95.4,91.7 153.0,125.3 146.7,128.9 89.1,95.3" fill="#C4D0D8"/>
+  <polygon points="80.0,100.6 118.4,123.0 112.2,126.7 73.8,104.3" fill="#D3DAE1"/>
+
+  <!-- 3D 球形对勾徽标 -->
+  <g filter="url(#badgeShadow)"><circle cx="204" cy="150" r="30" fill="url(#badge)"/></g>
+  <ellipse cx="195" cy="140" rx="16" ry="12" fill="url(#badgeHi)"/>
+  <path d="M 191 150 l 9 9 l 18 -19" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
