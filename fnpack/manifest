@@ -1,0 +1,20 @@
+appname               = techfunway-memo
+version               = 1.0.0
+display_name          = 备忘录
+platform              = x86
+source                = thirdparty
+maintainer            = 科技智趣坊
+maintainer_url        = http://techfunway.wycto.cn/fnapp/memo/
+distributor           = 科技智趣坊
+distributor_url       = http://techfunway.wycto.cn
+desktop_uidir         = ui
+desktop_applaunchname = techfunway-memo.Application
+desc                  = """
+<p><b style="color:#10B981;font-size:15px;">备忘录</b> —— 简洁高效、私有化部署的笔记应用，数据全部存储于本地 SQLite，无需联网，隐私自主可控。</p>
+<p><b style="color:#10B981;">✍ 富文本编辑</b><br/>支持加粗、斜体、下划线、删除线，文字颜色与高亮背景，可直接粘贴或上传图片。</p>
+<p><b style="color:#10B981;">🗂 分类与检索</b><br/>多级文件夹 + 标签灵活归类，笔记可置顶、收藏，支持全文搜索快速定位。</p>
+<p><b style="color:#10B981;">👥 多用户管理</b><br/>管理员后台可新增、编辑、删除用户；安全问题找回密码，密码加盐加密存储，安全可靠。</p>
+<p><b style="color:#10B981;">🌙 随处可用</b><br/>适配深色模式与移动端，支持记住账号、保持登录，随时随地记录灵感、待办与日常事务。</p>
+"""
+changelog             = """
+"""

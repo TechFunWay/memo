@@ -1,0 +1,71 @@
+#!/bin/bash
+
+set -e
+
+PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+cd "$PROJECT_DIR"
+
+VERSION_RAW=$(grep -o 'AppVersion = "[^"]*"' backend/config/config.go | cut -d'"' -f2)
+[ -z "$VERSION_RAW" ] && echo "❌ 无法获取版本号" && exit 1
+VERSION="${VERSION_RAW#v}"
+
+APP_NAME="techfunway-memo"
+RELEASE_DIR="release/v${VERSION}"
+
+[ ! -d "${RELEASE_DIR}/${APP_NAME}-${VERSION}-linux-amd64" ] && echo "❌ 请先运行 ./scripts/build-all.sh" && exit 1
+[ ! -d "${RELEASE_DIR}/${APP_NAME}-${VERSION}-linux-arm64" ] && echo "❌ 请先运行 ./scripts/build-all.sh" && exit 1
+
+echo "============================================"
+echo "  飞牛 fnOS 打包 v${VERSION}"
+echo "============================================"
+
+cp fnpack/manifest fnpack/manifest.bak
+sed -i '' "s/^version.*/version               = ${VERSION}/" fnpack/manifest
+
+build_fnpack() {
+    ARCH=$1
+    PLATFORM=$2
+    LABEL=$3
+    echo -n "  📦 ${LABEL}.fpk... "
+
+    DIR="${RELEASE_DIR}/fnpack-${ARCH}"
+    rm -rf "${DIR}"
+    mkdir -p "${DIR}"
+
+    # 复制飞牛模板，排除 .DS_Store
+    find fnpack -name ".DS_Store" -delete 2>/dev/null || true
+    cp -r fnpack/* "${DIR}/"
+    sed -i '' "s/^platform.*/platform              = ${PLATFORM}/" "${DIR}/manifest"
+
+    mkdir -p "${DIR}/app/server" "${DIR}/app/www"
+    cp "${RELEASE_DIR}/${APP_NAME}-${VERSION}-linux-${ARCH}/memo" "${DIR}/app/server/"
+    cp -r "${RELEASE_DIR}/${APP_NAME}-${VERSION}-linux-${ARCH}/www/"* "${DIR}/app/www/"
+
+    # 复制使用说明文档
+    for doc in "${RELEASE_DIR}/README-"*.md; do
+        if [ -f "$doc" ]; then
+            cp "$doc" "${DIR}/app/"
+        fi
+    done
+
+    # 删除 .DS_Store
+    find "${DIR}" -name ".DS_Store" -delete 2>/dev/null || true
+
+    cd "${DIR}"
+    fnpack build > /dev/null 2>&1
+    cd "$PROJECT_DIR"
+
+    mv "${DIR}/${APP_NAME}.fpk" "${RELEASE_DIR}/${APP_NAME}-v${VERSION}-${LABEL}.fpk"
+    rm -rf "${DIR}"
+    echo "✅"
+}
+
+echo ""
+build_fnpack "arm64" "arm" "fnos-arm64"
+build_fnpack "amd64" "x86" "fnos-amd64"
+
+mv fnpack/manifest.bak fnpack/manifest
+
+echo ""
+echo "✅ 完成!"
+ls -lh "${RELEASE_DIR}"/*.fpk | awk '{print "  " $NF " (" $5 ")"}'
