@@ -81,7 +81,7 @@ echo "📦 创建压缩包..."
 cd "${RELEASE_DIR}"
 for dir in ${APP_NAME}-${VERSION}-*/; do
     name=$(basename "$dir")
-    tar -czf "${name}.tar.gz" --exclude='.DS_Store' "$dir"
+    COPYFILE_DISABLE=1 tar -czf "${name}.tar.gz" --exclude='.DS_Store' "$dir"
 done
 cd "$PROJECT_DIR"
 

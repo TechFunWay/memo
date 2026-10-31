@@ -8,7 +8,7 @@ WEB_DIR="${TRIM_APPDEST}/www"
 
 mkdir -p "${DATA_DIR}"
 
-CMD="cd ${TRIM_APPDEST}/server/ && ${TRIM_APPDEST}/server/memo -port=${wizard_app_port} -web-dir=${WEB_DIR} -data-dir=${DATA_DIR}"
+CMD="cd ${TRIM_APPDEST}/server/ && rm -f ${TRIM_APPDEST}/app.sock && ${TRIM_APPDEST}/server/memo -port=${wizard_app_port} -web-dir=${WEB_DIR} -data-dir=${DATA_DIR} -fnos-app -gateway-prefix=/app/techfunway-memo -gateway-socket=${TRIM_APPDEST}/app.sock"
 
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> ${LOG_FILE}

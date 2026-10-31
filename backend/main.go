@@ -1,15 +1,22 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"memo/config"
 	"memo/database"
+	"memo/fnos"
 	"memo/handlers"
 	"memo/logger"
 	"memo/middleware"
@@ -18,11 +25,14 @@ import (
 
 // 命令行参数
 var (
-	port      = flag.String("port", "8905", "服务端口")
-	dataDir   = flag.String("data-dir", "./data", "数据目录路径")
-	webDir = flag.String("web-dir", "./static", "静态资源目录")
-	resetAdmin = flag.Bool("reset-admin", false, "重置管理员密码（需配合 -admin-pass 或 ADMIN_PASS 环境变量）")
-	adminPass  = flag.String("admin-pass", "", "新密码（与 -reset-admin 配合使用）")
+	port          = flag.String("port", "8905", "服务端口")
+	dataDir       = flag.String("data-dir", "./data", "数据目录路径")
+	webDir        = flag.String("web-dir", "./static", "静态资源目录")
+	resetAdmin    = flag.Bool("reset-admin", false, "重置管理员密码（需配合 -admin-pass 或 ADMIN_PASS 环境变量）")
+	adminPass     = flag.String("admin-pass", "", "新密码（与 -reset-admin 配合使用）")
+	fnOSApp       = flag.Bool("fnos-app", false, "以飞牛 fnOS 统一网关应用模式运行")
+	gatewaySocket = flag.String("gateway-socket", "", "飞牛统一网关 Unix Socket 路径")
+	gatewayPrefix = flag.String("gateway-prefix", "/app/techfunway-memo", "飞牛统一网关路径前缀")
 )
 
 func main() {
@@ -44,6 +54,10 @@ func main() {
 
 	// 初始化数据库
 	dbPath := filepath.Join(*dataDir, "db", "database.db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		database.FreshDB = true
+		sugarLogger.Warnf("⚠️  数据库文件不存在，将创建全新数据库：%s（若非首次安装，请检查数据目录是否挂载）", dbPath)
+	}
 	if err := database.InitDB(dbPath); err != nil {
 		sugarLogger.Fatalf("❌ Failed to initialize database: %v", err)
 	}
@@ -60,6 +74,10 @@ func main() {
 	if err := upgradeSvc.RunUpgrades(); err != nil {
 		sugarLogger.Errorf("❌ Database upgrade failed: %v", err)
 	}
+
+	// 评估数据状态：识别"数据库被换成空库"的异常场景，供前端告警
+	authSvc := &services.AuthService{}
+	database.DetectDataState(authSvc.HasUsers())
 
 	// 命令行重置管理员密码
 	if *resetAdmin {
@@ -93,9 +111,16 @@ func main() {
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
+	fnOSConfig := fnos.Config{Enabled: *fnOSApp, Socket: *gatewaySocket, Prefix: *gatewayPrefix}
+	// 部署形态标识：仅用于匿名统计的平台分布
+	handlers.StatsDeviceType = handlers.DetectDeviceType(fnOSConfig.Enabled)
+	appGroup := r.Group("")
+	if fnOSConfig.Enabled {
+		appGroup = r.Group(strings.TrimSuffix(fnOSConfig.Prefix, "/"))
+	}
 
 	// 上传文件静态服务
-	r.Static("/uploads", config.UploadDir)
+	appGroup.Static("/uploads", config.UploadDir)
 
 	// 静态文件服务 (在 NoRoute 中处理，避免与 /api/* 路由冲突)
 	if _, err := os.Stat(*webDir); err == nil {
@@ -108,7 +133,7 @@ func main() {
 	sugarLogger.Infof("✅ 上传文件目录：%s", config.UploadDir)
 
 	// API 路由
-	api := r.Group("/api")
+	api := appGroup.Group("/api")
 	{
 		// 版本信息
 		api.GET("/version", handlers.GetVersion)
@@ -122,6 +147,9 @@ func main() {
 			auth.GET("/has-users", handlers.CheckHasUsers)
 			auth.GET("/security-question", handlers.GetSecurityQuestion)
 			auth.POST("/verify-security", handlers.VerifySecurityAnswer)
+			if fnOSConfig.Enabled {
+				fnos.RegisterRoutes(auth.Group("/fnos"), database.DB)
+			}
 		}
 
 		// 公开配置
@@ -132,6 +160,9 @@ func main() {
 		authorized := api.Group("")
 		authorized.Use(middleware.AuthMiddleware())
 		{
+			// 赞赏支持计数（匿名设备统计，仅设备级信息，不含用户数据）
+			authorized.POST("/donate/support", handlers.DonateSupport)
+
 			// 用户信息
 			authorized.GET("/auth/me", handlers.GetCurrentUser)
 			authorized.PUT("/auth/password", handlers.ChangePassword)
@@ -187,12 +218,27 @@ func main() {
 
 	// SPA 路由：先尝试提供静态文件，找不到则返回 index.html
 	r.NoRoute(func(c *gin.Context) {
-		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
+		requestPath := c.Request.URL.Path
+		appPrefix := ""
+		if fnOSConfig.Enabled {
+			appPrefix = strings.TrimSuffix(fnOSConfig.Prefix, "/")
+			if requestPath != appPrefix && !strings.HasPrefix(requestPath, appPrefix+"/") {
+				c.Status(http.StatusNotFound)
+				return
+			}
+		}
+		relativePath := strings.TrimPrefix(requestPath, appPrefix)
+		if strings.HasPrefix(relativePath, "/api") {
 			c.JSON(404, gin.H{"error": "API endpoint not found"})
 			return
 		}
+		if relativePath == "/manifest.webmanifest" {
+			c.Header("Content-Type", "application/manifest+json")
+			c.File(filepath.Join(*webDir, "manifest.webmanifest"))
+			return
+		}
 		// 尝试提供静态文件
-		staticPath := filepath.Join(*webDir, c.Request.URL.Path)
+		staticPath := filepath.Join(*webDir, strings.TrimPrefix(relativePath, "/"))
 		if _, err := os.Stat(staticPath); err == nil {
 			c.File(staticPath)
 			return
@@ -206,7 +252,47 @@ func main() {
 	sugarLogger.Infof("🌐 Server starting on port %s", addr)
 	sugarLogger.Infof("📌 API endpoint: http://localhost:%s/api", addr)
 
-	if err := r.Run(addr); err != nil {
-		sugarLogger.Fatalf("❌ Server failed to start: %v", err)
+	listeners, err := fnos.Listen(addr, fnOSConfig)
+	if err != nil {
+		sugarLogger.Fatalf("❌ Server failed to listen: %v", err)
+	}
+	for _, listener := range listeners {
+		defer listener.Close()
+	}
+	if fnOSConfig.Enabled {
+		defer os.Remove(fnOSConfig.Socket)
+	}
+
+	servers := make([]*http.Server, 0, len(listeners))
+	for _, listener := range listeners {
+		handler := http.Handler(r)
+		if fnOSConfig.Enabled && !listener.TrustedGateway {
+			gatewayURL := strings.TrimSuffix(fnOSConfig.Prefix, "/") + "/"
+			handler = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.URL.Path == "/" {
+					http.Redirect(w, req, gatewayURL, http.StatusTemporaryRedirect)
+					return
+				}
+				r.ServeHTTP(w, req)
+			})
+		}
+		server := fnos.NewHTTPServer(handler, listener.TrustedGateway)
+		servers = append(servers, server)
+		go func(server *http.Server, listener fnos.Listener) {
+			if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+				sugarLogger.Errorf("Server error: %v", err)
+			}
+		}(server, listener)
+	}
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for _, server := range servers {
+		if err := server.Shutdown(ctx); err != nil {
+			sugarLogger.Errorf("Server forced to shutdown: %v", err)
+		}
 	}
 }

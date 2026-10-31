@@ -4,6 +4,24 @@
 
 > 📋 **[查看更新日志 → CHANGELOG.md](./CHANGELOG.md)**
 
+## 下载与安装
+
+| 渠道 | 获取方式 |
+|---|---|
+| GitHub Releases | <https://github.com/TechFunWay/memo/releases> —— 各平台压缩包、飞牛 `fpk` 安装包与 `docker-compose.yml` |
+| Gitee 镜像 | <https://gitee.com/TechFunWay/memo> —— 代码自动同步自 GitHub，发行版待补 |
+| Docker 镜像 | `docker pull techfunways/memo:latest`（amd64 / arm64 多平台） |
+| 飞牛 fnOS | 在飞牛应用中心手动安装 Releases 里的 `.fpk` 安装包（amd64 / arm64） |
+| 官网介绍页 | <https://techfunway.wycto.cn/fnapp/memo> |
+
+> 默认端口 `8905`；数据默认是挂载目录下的 SQLite 单文件，备份即拷贝，恢复支持上传本地备份文件。
+
+## 界面预览
+
+| 登录 | 文件夹管理 | 账号与安全 |
+|---|---|---|
+| ![登录](docs/screenshots/memo-login.png) | ![文件夹管理](docs/screenshots/memo-folder.png) | ![账号与安全](docs/screenshots/memo-security.png) |
+
 ## ✨ 特性
 
 - 🎨 **美观界面**: Naive UI + Tailwind CSS，支持深色模式
@@ -44,6 +62,45 @@ docker run -d \
 ### 方式三：飞牛 NAS
 
 在应用中心手动安装 `.fpk` 包即可。
+
+---
+
+## 🧪 本地模拟正式环境
+
+使用 `make dev` 会编译前端和当前系统平台的后端二进制，并按正式发布包结构组装到项目根目录的 `dev/`：
+
+```bash
+make dev
+
+# 使用自定义端口
+make dev PORT=8080
+```
+
+目录结构：
+
+```text
+dev/
+├── memo             # 编译后的后端程序
+├── start.sh         # 独立启动脚本
+├── www/             # 前端构建产物
+└── data/            # 数据库、上传文件和日志
+```
+
+构建完成后服务以前台方式运行，默认访问地址为 `http://localhost:8905`，按 `Ctrl+C` 停止。
+
+重复执行 `make dev` 时：
+
+1. 重新编译前端与后端；
+2. 替换 `dev/memo` 和 `dev/www/`；
+3. 保留 `dev/data/` 中的运行数据；
+4. 检测目标端口，先尝试正常停止占用进程，未及时退出时再强制停止；
+5. 从 `dev/` 目录启动新程序。
+
+也可以在完成一次构建后直接运行：
+
+```bash
+./dev/start.sh
+```
 
 ---
 
@@ -113,7 +170,7 @@ docker run -d \
 
 ```bash
 # 固定版本
-docker compose -f docker-compose-v1.0.0.yml up -d
+docker compose -f docker-compose-v1.1.1.yml up -d
 
 # 跟随最新版并自动更新
 docker compose -f docker-compose-latest.yml up -d
@@ -250,4 +307,18 @@ data/
 
 ## 📄 许可证
 
-MIT License
+本项目基于 [GNU Affero General Public License v3.0](LICENSE)(AGPL-3.0)开源。
+
+这意味着:你可以自由使用、修改和分发本项目,但**任何修改后的版本——包括通过网络以服务形式(如自托管 SaaS)对外提供时——都必须以相同的 AGPL-3.0 协议开源你的完整源代码**。
+
+Copyright © 2026 techfunway
+
+## 支持作者
+
+如果备忘录帮到了你，欢迎微信扫码请作者喝杯咖啡——金额随意，1 元也是心意：
+
+<p align="center">
+  <img src="docs/donate-wechat.png" alt="微信收款码" width="240" />
+</p>
+
+应用内的赞赏入口（启动弹窗、顶部横幅、右下角支持按钮）随时可用；支持记录按版本号记忆，升级到新版本后会再次提醒。支持完全自愿，不支付不影响任何功能。

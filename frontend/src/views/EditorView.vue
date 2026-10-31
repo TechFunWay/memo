@@ -165,8 +165,12 @@
     <!-- 编辑器区域 -->
     <div
       ref="editorRef"
-      class="flex-1 overflow-auto px-3 sm:px-4 py-4 outline-none text-gray-800 dark:text-gray-200"
+      class="memo-editor flex-1 overflow-auto px-3 sm:px-4 py-4 outline-none text-left text-gray-800 dark:text-gray-200"
       contenteditable
+      role="textbox"
+      aria-label="备忘录正文编辑区"
+      aria-multiline="true"
+      spellcheck="true"
       @input="handleInput"
       @paste="handlePaste"
       @keydown="handleKeydown"
@@ -418,24 +422,29 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.editor-content:empty::before {
+.memo-editor:empty::before {
   content: attr(placeholder);
   color: #9ca3af;
   pointer-events: none;
 }
 
-.editor-content {
+.memo-editor {
   min-height: 200px;
   line-height: 1.6;
   font-size: 15px;
   color: #374151;
+  text-align: left !important;
 }
 
-.dark .editor-content {
+.memo-editor :deep(*) {
+  text-align: left !important;
+}
+
+.dark .memo-editor {
   color: #d1d5db;
 }
 
-.editor-content img {
+.memo-editor img {
   max-width: 100% !important;
   height: auto !important;
   border-radius: 8px;
@@ -443,12 +452,12 @@ onUnmounted(() => {
   display: block;
 }
 
-.editor-content ul,
-.editor-content ol {
+.memo-editor ul,
+.memo-editor ol {
   padding-left: 1.5em;
 }
 
-.editor-content h2 {
+.memo-editor h2 {
   font-size: 1.25em;
   font-weight: 600;
   margin: 0.5em 0;

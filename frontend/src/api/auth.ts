@@ -34,6 +34,14 @@ export async function register(username: string, password: string, nickname: str
   })
 }
 
+export async function fnosLogin(): Promise<LoginResponse & { binding_required?: boolean; fnos_username?: string }> {
+  return api.post('/auth/fnos/login')
+}
+
+export async function bindFnOSAccount(mode: 'register' | 'bind', username: string, password: string): Promise<LoginResponse> {
+  return api.post('/auth/fnos/bind', { mode, username, password: hashPassword(password) })
+}
+
 export interface ChangePasswordRequest {
   old_password: string
   new_password: string
@@ -55,7 +63,15 @@ export async function getCurrentUser() {
   return api.get('/auth/me')
 }
 
-export async function checkHasUsers(): Promise<{ has_users: boolean }> {
+export interface HasUsersResult {
+  has_users: boolean
+  /** 本次启动时数据库是新建的空库（正常仅首次安装出现） */
+  fresh_db?: boolean
+  /** 历史上已有账号但当前数据库为空，疑似数据目录未挂载或被更换 */
+  suspect_data_loss?: boolean
+}
+
+export async function checkHasUsers(): Promise<HasUsersResult> {
   return api.get('/auth/has-users')
 }
 

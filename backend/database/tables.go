@@ -123,6 +123,19 @@ func InitTables() error {
 	);
 	`
 
+	createFnOSBindingsTable := `
+	CREATE TABLE IF NOT EXISTS fnos_bindings (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL UNIQUE,
+		fnos_user_id INTEGER NOT NULL UNIQUE,
+		fnos_username TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	);
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_fnos_bindings_uid ON fnos_bindings(fnos_user_id);
+	`
+
 	// 执行所有表创建语句
 	tables := []string{
 		createUsersTable,
@@ -132,6 +145,7 @@ func InitTables() error {
 		createTagsTable,
 		createMemoTagsTable,
 		createSysConfigTable,
+		createFnOSBindingsTable,
 	}
 
 	for _, table := range tables {

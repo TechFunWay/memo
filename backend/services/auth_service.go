@@ -91,6 +91,11 @@ func (s *AuthService) Register(username, password, nickname, email string, quest
 
 	userID, _ := result.LastInsertId()
 
+	// 首个用户即管理员：落哨兵标记"系统曾有账号"，供数据丢失场景识别
+	if isAdmin {
+		database.WriteHadUsersSentinel()
+	}
+
 	return &models.User{
 		ID:       userID,
 		Username: username,
@@ -305,8 +310,18 @@ func (s *AuthService) DeleteUser(currentUserID, targetUserID int64) error {
 		return errors.New("不能删除管理员")
 	}
 
-	_, err = database.DB.Exec("DELETE FROM users WHERE id = ?", targetUserID)
-	return err
+	tx, err := database.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec("DELETE FROM fnos_bindings WHERE user_id = ?", targetUserID); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("DELETE FROM users WHERE id = ?", targetUserID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // AdminResetUserPassword 管理员重置指定用户的密码

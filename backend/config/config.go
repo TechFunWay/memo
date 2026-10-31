@@ -6,7 +6,7 @@ import (
 )
 
 // AppVersion 应用版本（单一定义源）
-const AppVersion = "v1.0.0"
+const AppVersion = "v1.2.0"
 
 var (
 	DataDir   string

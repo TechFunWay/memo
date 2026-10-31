@@ -1,0 +1,9 @@
+services:
+  memo:
+    image: techfunways/memo:v1.2.0
+    container_name: memo
+    restart: unless-stopped
+    ports:
+      - "8905:8905"
+    volumes:
+      - ./data:/app/data
