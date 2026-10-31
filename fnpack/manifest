@@ -1,10 +1,10 @@
 appname               = techfunway-memo
-version               = 1.0.0
+version               = 1.2.0
 display_name          = 备忘录
 platform              = x86
 source                = thirdparty
 maintainer            = 科技智趣坊
-maintainer_url        = http://techfunway.wycto.cn/fnapp/memo/
+maintainer_url        = https://github.com/TechFunWay/memo
 distributor           = 科技智趣坊
 distributor_url       = http://techfunway.wycto.cn
 desktop_uidir         = ui
@@ -17,4 +17,20 @@ desc                  = """
 <p><b style="color:#10B981;">🌙 随处可用</b><br/>适配深色模式与移动端，支持记住账号、保持登录，随时随地记录灵感、待办与日常事务。</p>
 """
 changelog             = """
+v1.2.0 更新
+
+【新增】
+- 接入飞牛 NAS 统一登录：从应用中心打开即以 NAS 身份进入，未绑定可直接创建或绑定账号
+- 数据异常保护：识别数据库异常变空，登录与注册页给出告警并可重新检测，需确认后才创建新管理员，避免误建账号导致旧笔记丢失
+
+【改进】
+- 飞牛桌面图标改为在浏览器新页面打开，不再使用独立窗口
+- 侧边栏支持拖拽调宽、键盘调整与双击复位，并记忆用户设置
+- 补充手机端添加到主屏幕的快捷方式图标
+
+【优化】
+- 备忘录正文统一左对齐，历史富文本与新输入内容排版一致
+
+【修复】
+- 修复未携带应用令牌时飞牛登录失败引起登录页反复重载
 """

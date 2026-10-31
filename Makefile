@@ -2,6 +2,8 @@
 
 .DEFAULT_GOAL := help
 
+PORT ?= 8905
+
 # 显示帮助信息
 help:
 	@echo "可用命令:"
@@ -11,7 +13,8 @@ help:
 	@echo "  make deploy-frontend       清空后端 static 并复制前端 dist 到后端"
 	@echo "  make run                   运行后端服务 (go run main.go)"
 	@echo "  make deploy                完整流程：删除dist→打包→复制到后端→运行"
-	@echo "  make dev                   模拟线上环境：构建前端→部署到后端→启动（打印访问地址）"
+	@echo "  make dev                   构建正式结构到 dev/ 并重启服务（默认端口 8905）"
+	@echo "  make dev PORT=8080         指定端口构建并重启 dev 服务"
 	@echo ""
 
 # 1. 删除前端 dist 目录
@@ -46,20 +49,9 @@ run:
 	@echo "🚀 启动后端服务..."
 	cd backend && go run main.go -port 8905
 
-# 模拟线上环境测试：构建前端→部署到后端→打印地址→运行后端
-dev: clean-dist build-frontend deploy-frontend
-	@echo ""
-	@echo "============================================"
-	@echo "  后端访问地址：http://localhost:8905"
-	@echo "============================================"
-	@echo ""
-	@if lsof -Pi :8905 -sTCP:LISTEN -t >/dev/null 2>&1; then \
-		echo "⚠️  端口 8905 已被占用，正在停止旧服务..."; \
-		lsof -ti:8905 | xargs kill -9 2>/dev/null; \
-		sleep 1; \
-	fi
-	@echo "🚀 启动后端服务..."
-	cd backend && go run main.go -port 8905
+# 本地正式结构测试：编译前端和后端，组装到 dev/，停止旧端口服务后运行
+dev:
+	@PORT="$(PORT)" ./scripts/dev.sh
 
 # 完整流程：删除dist→打包→复制到后端→运行
 deploy: clean-dist build-frontend deploy-frontend run

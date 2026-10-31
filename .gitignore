@@ -27,9 +27,21 @@ Temporary Items
 .apdisk
 .idea
 release/
+dev/
 backend/data
 backend/static
 backend/memo
 frontend/dist
 frontend/node_modules
 .trae/
+
+# ---------- 本地临时目录 ----------
+# 临时测试与调试文件统一放这里，目录内内容不入库（仅保留 .gitkeep 占位）
+tmp/*
+!tmp/.gitkeep
+
+# AI 工具本地目录
+.claude/*
+!.claude/skills/
+.zcode/
+.mimocode/

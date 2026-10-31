@@ -41,10 +41,12 @@
 
       <!-- 侧边栏 -->
       <aside
+        :style="!isMobile && sidebarOpen ? { width: `${sidebarWidth}px` } : undefined"
         :class="[
-          'bg-gray-50 dark:bg-[#151518] border-r dark:border-[#2d2d33] transition-all duration-300 flex-shrink-0 overflow-hidden',
+          'bg-gray-50 dark:bg-[#151518] border-r dark:border-[#2d2d33] flex-shrink-0 overflow-hidden',
+          !isSidebarResizing && 'transition-all duration-300',
           sidebarOpen
-            ? (isMobile ? 'w-72 fixed left-0 top-0 bottom-0 z-40' : 'w-60')
+            ? (isMobile ? 'w-72 fixed left-0 top-0 bottom-0 z-40' : 'sidebar-expanded')
             : (isMobile ? 'w-0' : 'w-14'),
         ]"
       >
@@ -175,7 +177,13 @@
           <div v-if="!isMobile" class="flex-shrink-0 border-t dark:border-[#2d2d33] p-2">
             <n-tooltip :content="sidebarOpen ? '收起侧边栏' : '展开侧边栏'" placement="right" trigger="hover">
               <template #trigger>
-                <n-button quaternary block @click="toggleSidebar" class="flex items-center justify-center">
+                <n-button
+                  quaternary
+                  block
+                  :aria-label="sidebarOpen ? '收起侧边栏' : '展开侧边栏'"
+                  @click="toggleSidebar"
+                  class="flex items-center justify-center"
+                >
                   <template #icon>
                     <n-icon :component="sidebarOpen ? ArrowBackOutline : ArrowForwardOutline" />
                   </template>
@@ -186,6 +194,28 @@
           </div>
         </div>
       </aside>
+
+      <!-- 桌面端侧边栏宽度调节条 -->
+      <div
+        v-if="sidebarOpen && !isMobile"
+        class="sidebar-resizer"
+        :class="{ 'is-resizing': isSidebarResizing }"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整侧边栏宽度"
+        :aria-valuemin="SIDEBAR_MIN_WIDTH"
+        :aria-valuemax="SIDEBAR_MAX_WIDTH"
+        :aria-valuenow="Math.round(sidebarWidth)"
+        :aria-valuetext="`${Math.round(sidebarWidth)} 像素`"
+        title="拖动调整侧边栏宽度，双击恢复默认宽度"
+        tabindex="0"
+        @pointerdown="startSidebarResize"
+        @pointercancel="stopSidebarResize"
+        @dblclick="resetSidebarWidth"
+        @keydown="handleSidebarResizeKeydown"
+      >
+        <span class="sidebar-resizer-handle" aria-hidden="true" />
+      </div>
 
       <!-- 主内容区 -->
       <main class="flex-1 overflow-auto bg-gray-100 dark:bg-[#101014] p-3 sm:p-4 w-full">
@@ -378,7 +408,7 @@ import { getVersion } from '@/api/system'
 import { setSecurityQuestions, checkSecurityQuestion } from '@/api/auth'
 import SecurityQuestionsForm from '@/components/SecurityQuestionsForm.vue'
 
-const appVersion = ref('v1.0.0')
+const appVersion = ref('v1.1.1')
 
 const router = useRouter()
 const message = useMessage()
@@ -393,6 +423,17 @@ const searchQuery = ref('')
 const darkMode = computed(() => themeStore.darkMode)
 const activeMenuKey = ref<string>('all')
 const isMobile = ref(false)
+const SIDEBAR_WIDTH_STORAGE_KEY = 'memo-sidebar-width'
+const SIDEBAR_DEFAULT_WIDTH = 240
+const SIDEBAR_MIN_WIDTH = 200
+const SIDEBAR_MAX_WIDTH = 360
+const sidebarWidth = ref(SIDEBAR_DEFAULT_WIDTH)
+const isSidebarResizing = ref(false)
+
+let sidebarResizeStartX = 0
+let sidebarResizeStartWidth = SIDEBAR_DEFAULT_WIDTH
+let previousBodyUserSelect = ''
+let previousBodyCursor = ''
 
 const currentPage = ref(1)
 const pageSize = 12
@@ -417,12 +458,100 @@ function checkMobile() {
   isMobile.value = window.innerWidth < 768
 }
 
+function clampSidebarWidth(width: number) {
+  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, width))
+}
+
+function loadSidebarWidth() {
+  try {
+    const storedWidth = Number(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY))
+    if (Number.isFinite(storedWidth)) {
+      sidebarWidth.value = clampSidebarWidth(storedWidth)
+    }
+  } catch {
+    // 隐私模式下 localStorage 不可用时使用默认宽度
+  }
+}
+
+function persistSidebarWidth() {
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(Math.round(sidebarWidth.value)))
+  } catch {
+    // 不影响侧边栏当前会话的缩放
+  }
+}
+
 checkMobile()
+loadSidebarWidth()
 window.addEventListener('resize', checkMobile)
-onUnmounted(() => window.removeEventListener('resize', checkMobile))
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+  stopSidebarResize()
+})
 
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value
+}
+
+function startSidebarResize(event: PointerEvent) {
+  if (isMobile.value || !sidebarOpen.value) return
+
+  event.preventDefault()
+  sidebarResizeStartX = event.clientX
+  sidebarResizeStartWidth = sidebarWidth.value
+  isSidebarResizing.value = true
+
+  previousBodyUserSelect = document.body.style.userSelect
+  previousBodyCursor = document.body.style.cursor
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'col-resize'
+
+  window.addEventListener('pointermove', handleSidebarResize)
+  window.addEventListener('pointerup', stopSidebarResize)
+  window.addEventListener('pointercancel', stopSidebarResize)
+}
+
+function handleSidebarResize(event: PointerEvent) {
+  if (!isSidebarResizing.value) return
+  sidebarWidth.value = clampSidebarWidth(sidebarResizeStartWidth + event.clientX - sidebarResizeStartX)
+}
+
+function stopSidebarResize() {
+  if (!isSidebarResizing.value) return
+
+  isSidebarResizing.value = false
+  persistSidebarWidth()
+  document.body.style.userSelect = previousBodyUserSelect
+  document.body.style.cursor = previousBodyCursor
+
+  window.removeEventListener('pointermove', handleSidebarResize)
+  window.removeEventListener('pointerup', stopSidebarResize)
+  window.removeEventListener('pointercancel', stopSidebarResize)
+}
+
+function resetSidebarWidth() {
+  sidebarWidth.value = SIDEBAR_DEFAULT_WIDTH
+  persistSidebarWidth()
+}
+
+function handleSidebarResizeKeydown(event: KeyboardEvent) {
+  let nextWidth: number | null = null
+
+  if (event.key === 'ArrowLeft') {
+    nextWidth = sidebarWidth.value - 16
+  } else if (event.key === 'ArrowRight') {
+    nextWidth = sidebarWidth.value + 16
+  } else if (event.key === 'Home') {
+    nextWidth = SIDEBAR_MIN_WIDTH
+  } else if (event.key === 'End') {
+    nextWidth = SIDEBAR_MAX_WIDTH
+  }
+
+  if (nextWidth !== null) {
+    event.preventDefault()
+    sidebarWidth.value = clampSidebarWidth(nextWidth)
+    persistSidebarWidth()
+  }
 }
 
 const toggleDarkMode = () => {
@@ -710,7 +839,7 @@ onMounted(async () => {
   await Promise.all([memoStore.fetchMemos(), folderStore.fetchFolders()])
   try {
     const res = await getVersion()
-    appVersion.value = res.version || 'v1.0.0'
+    appVersion.value = res.version || 'v1.1.1'
   } catch {
     // ignore version fetch errors
   }
@@ -728,4 +857,69 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.sidebar-resizer {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.sidebar-resizer::before {
+  content: '';
+  width: 1px;
+  height: 100%;
+  background: transparent;
+  transition: background-color 150ms ease;
+}
+
+.sidebar-resizer-handle {
+  position: absolute;
+  width: 4px;
+  height: 36px;
+  border-radius: 9999px;
+  background: #cbd5e1;
+  opacity: 0;
+  transition: opacity 150ms ease, background-color 150ms ease;
+}
+
+.sidebar-resizer:hover::before,
+.sidebar-resizer:focus-visible::before,
+.sidebar-resizer.is-resizing::before {
+  background: #94a3b8;
+}
+
+.sidebar-resizer:hover .sidebar-resizer-handle,
+.sidebar-resizer:focus-visible .sidebar-resizer-handle,
+.sidebar-resizer.is-resizing .sidebar-resizer-handle {
+  opacity: 1;
+}
+
+.sidebar-resizer:hover .sidebar-resizer-handle,
+.sidebar-resizer:focus-visible .sidebar-resizer-handle {
+  background: #64748b;
+}
+
+.dark .sidebar-resizer-handle {
+  background: #475569;
+}
+
+.dark .sidebar-resizer:hover .sidebar-resizer-handle,
+.dark .sidebar-resizer:focus-visible .sidebar-resizer-handle,
+.dark .sidebar-resizer.is-resizing .sidebar-resizer-handle {
+  background: #94a3b8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-resizer::before,
+  .sidebar-resizer-handle {
+    transition: none;
+  }
+}
 </style>

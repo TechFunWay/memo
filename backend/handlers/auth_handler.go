@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"memo/database"
 	"memo/middleware"
 	"memo/services"
 	"net/http"
@@ -128,7 +129,12 @@ func AdminResetUserPassword(c *gin.Context) {
 // CheckHasUsers 检查系统是否有用户
 func CheckHasUsers(c *gin.Context) {
 	authService := &services.AuthService{}
-	c.JSON(http.StatusOK, gin.H{"has_users": authService.HasUsers()})
+	hasUsers := authService.HasUsers()
+	c.JSON(http.StatusOK, gin.H{
+		"has_users":         hasUsers,
+		"fresh_db":          database.FreshDB,
+		"suspect_data_loss": database.SuspectDataLoss && !hasUsers,
+	})
 }
 
 // Register 用户注册

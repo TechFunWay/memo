@@ -18,6 +18,18 @@
         <n-spin size="medium" />
       </div>
 
+      <n-alert v-else-if="suspectDataLoss" type="warning" :bordered="false">
+        <p class="text-sm leading-relaxed">
+          检测到数据异常：系统历史上已有账号，但当前数据库是空的。原数据文件可能暂时未被挂载（常见于
+          NAS 重启时数据目录加载失败），重启 NAS 后再打开通常可恢复。
+        </p>
+        <p class="text-sm leading-relaxed mt-1.5">在数据找回之前，请先不要创建新账号。</p>
+        <div class="flex gap-2 mt-3">
+          <n-button size="small" type="primary" :loading="rechecking" @click="recheckUsers">重新检测</n-button>
+          <n-button size="small" quaternary @click="$router.replace('/register')">仍要创建新账号</n-button>
+        </div>
+      </n-alert>
+
       <template v-else>
         <div class="flex flex-col gap-5">
           <n-input v-model:value="form.username" placeholder="用户名" size="large" clearable @keyup.enter="handleLogin" />
@@ -34,6 +46,17 @@
             @click="handleLogin"
           >
             登录
+          </n-button>
+          <n-button
+            v-if="fnosEnabled"
+            secondary
+            size="large"
+            block
+            :loading="loading"
+            :disabled="loading"
+            @click="handleFnOSLogin"
+          >
+            使用飞牛 NAS 登录
           </n-button>
         </div>
 
@@ -53,9 +76,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NInput, NButton, NCheckbox, NSpin, useMessage } from 'naive-ui'
+import { NInput, NButton, NCheckbox, NSpin, NAlert, useMessage } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
-import { checkHasUsers } from '@/api/auth'
+import { checkHasUsers, fnosLogin } from '@/api/auth'
 
 const router = useRouter()
 const message = useMessage()
@@ -63,8 +86,11 @@ const authStore = useAuthStore()
 
 const loading = ref(false)
 const loadingInit = ref(true)
+const suspectDataLoss = ref(false)
+const rechecking = ref(false)
 const rememberAccount = ref(false)
 const keepLogin = ref(true)
+const fnosEnabled = import.meta.env.VITE_FNOS_APP === 'true'
 
 const form = reactive({
   username: '',
@@ -72,10 +98,29 @@ const form = reactive({
 })
 
 onMounted(async () => {
-  // 首次使用（系统无用户）→ 跳转注册页创建管理员
+  // fnOS 入口由统一网关注入 NAS 身份：优先自动登录，未绑定时进入绑定流程。
+  if (fnosEnabled) {
+    loading.value = true
+    try {
+      await loginWithFnOS()
+      return
+    } catch (error: any) {
+      message.error(error.response?.data?.error || '飞牛 NAS 自动登录失败，可重试或使用应用账号登录')
+    } finally {
+      loading.value = false
+      loadingInit.value = false
+    }
+  }
+
+  // 首次使用（系统无用户）→ 跳转注册页创建管理员；
+  // 疑似数据丢失（曾有账号但现在是空库）→ 停留登录页告警，避免误导用户新建账号
   try {
     const res = await checkHasUsers()
     if (!res.has_users) {
+      if (res.suspect_data_loss) {
+        suspectDataLoss.value = true
+        return
+      }
       router.replace('/register')
       return
     }
@@ -93,6 +138,23 @@ onMounted(async () => {
   }
   keepLogin.value = localStorage.getItem('keep_login') !== 'false'
 })
+
+const recheckUsers = async () => {
+  rechecking.value = true
+  try {
+    const res = await checkHasUsers()
+    if (res.has_users) {
+      suspectDataLoss.value = false
+      message.success('数据已恢复，请用原来的账号登录')
+    } else {
+      message.warning('数据库仍为空。建议先重启 NAS 再试；若仍未恢复，请联系开发者找回数据')
+    }
+  } catch {
+    message.error('检测失败，请稍后重试')
+  } finally {
+    rechecking.value = false
+  }
+}
 
 const handleLogin = async () => {
   if (!form.username) { message.warning('请输入用户名'); return }
@@ -115,5 +177,29 @@ const handleLogin = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handleFnOSLogin = async () => {
+  loading.value = true
+  try {
+    await loginWithFnOS()
+  } catch (error: any) {
+    message.error(error.response?.data?.error || '飞牛 NAS 登录失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const loginWithFnOS = async () => {
+  const result = await fnosLogin()
+  if (result.binding_required) {
+    await router.replace({ path: '/register', query: { fnos: 'bind', fnos_username: result.fnos_username || '' } })
+    return
+  }
+  authStore.token = result.token
+  authStore.user = result.user
+  authStore.isAuthenticated = true
+  localStorage.setItem('token', result.token)
+  await router.replace('/')
 }
 </script>

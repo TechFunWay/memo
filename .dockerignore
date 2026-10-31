@@ -1,0 +1,10 @@
+.git
+.gitignore
+.DS_Store
+backend/data
+backend/memo
+backend/static
+dev
+frontend/dist
+frontend/node_modules
+release

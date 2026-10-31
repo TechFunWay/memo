@@ -25,8 +25,12 @@ docker rmi $(docker images "${IMAGE_NAME}" -q) 2>/dev/null || true
 # 删除 .DS_Store
 find "${RELEASE_DIR}" -name ".DS_Store" -delete 2>/dev/null || true
 
-# 切换到 default context
-docker context use default 2>/dev/null || true
+# 容器引擎上下文：可用 DOCKER_CONTEXT 指定，默认沿用当前上下文（OrbStack / colima / default）
+# 历史上这里写死 `docker context use default`，在非 Docker Desktop 环境会指向不存在的 socket
+if [ -n "${DOCKER_CONTEXT:-}" ]; then
+    docker context use "${DOCKER_CONTEXT}" >/dev/null 2>&1 || true
+fi
+BUILDER_NAME="${BUILDER_NAME:-$(docker context show 2>/dev/null || echo default)}"
 
 echo ""
 echo "🔨 构建多平台镜像..."
@@ -51,17 +55,26 @@ ENTRYPOINT ["/app/memo", "-port", "8905", "-data-dir", "/app/data", "-web-dir", 
 EOF
 
 # 构建多平台镜像
+# 多平台产物导出为 OCI 归档（buildx 的 docker 导出器不支持 manifest list）：
+# 归档随发行目录分发，可用 `docker load -i` 导入，也可用 skopeo 直接推送 Docker Hub
+# 注意：下面已 cd 进 RELEASE_DIR，这里必须写绝对路径，否则会生成嵌套的 release/vX/release/vX/
+OCI_ARCHIVE="${PROJECT_DIR}/${RELEASE_DIR}/${APP_NAME}-v${VERSION}-multiarch.oci.tar"
 docker buildx build \
-    --builder default \
+    --builder "${BUILDER_NAME}" \
     --platform linux/amd64,linux/arm64 \
-    --output type=docker \
     --build-arg VERSION=${VERSION} \
     -t "${IMAGE_NAME}:v${VERSION}" \
     -t "${IMAGE_NAME}:latest" \
+    --output "type=oci,dest=${OCI_ARCHIVE}" \
     .
 
 rm -f Dockerfile
 cd "${PROJECT_DIR}"
+
+# 导入本机镜像，便于本地 `docker run` 验证
+if docker load -i "${OCI_ARCHIVE}" >/dev/null 2>&1; then
+    echo "  📦 镜像已导入本机 Docker"
+fi
 
 # 生成 docker-compose 文件（每次构建 docker 后自动生成）
 # - docker-compose-v${VERSION}.yml：固定版本，不自动更新

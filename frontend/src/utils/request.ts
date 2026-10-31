@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${import.meta.env.BASE_URL}api`,
   timeout: 10000,
 })
 
@@ -18,9 +18,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    if (error.response?.status === 401) {
+    const hadToken = Boolean(localStorage.getItem('token'))
+    const requestUrl = String(error.config?.url || '')
+    const isLoginRequest = ['/auth/login', '/auth/fnos/login', '/auth/fnos/bind'].some((path) => requestUrl.endsWith(path))
+    if (error.response?.status === 401 && hadToken && !isLoginRequest) {
       localStorage.removeItem('token')
-      window.location.href = '/login'
+      window.location.href = `${import.meta.env.BASE_URL}login`
     }
     return Promise.reject(error)
   }
